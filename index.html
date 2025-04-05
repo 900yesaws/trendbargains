@@ -3,40 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Modern Todo List</title>
+  <title>Todo App</title>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      background-color: #f4f7f6;
-      margin: 0;
-      padding: 0;
+      font-family: Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
     }
+
     .todo-container {
-      background-color: #fff;
+      background-color: white;
       border-radius: 8px;
       padding: 20px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-    .todo-header {
+
+    h1 {
       font-size: 24px;
-      text-align: center;
       margin-bottom: 20px;
     }
-    .todo-input {
-      width: 100%;
+
+    input {
+      width: calc(100% - 20px);
       padding: 10px;
-      font-size: 16px;
       margin-bottom: 10px;
       border: 1px solid #ddd;
       border-radius: 4px;
     }
-    .todo-button {
+
+    button {
       width: 100%;
       padding: 10px;
       background-color: #4CAF50;
@@ -44,110 +44,136 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 16px;
     }
-    .todo-button:hover {
+
+    button:hover {
       background-color: #45a049;
     }
-    .todo-list {
-      margin-top: 20px;
+
+    ul {
+      list-style-type: none;
+      padding: 0;
     }
-    .todo-item {
+
+    li {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      padding: 10px;
       margin-bottom: 10px;
-      background-color: #f9f9f9;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 5px 0;
     }
-    .todo-item.completed {
+
+    li.completed {
       text-decoration: line-through;
-      background-color: #e0e0e0;
-    }
-    .todo-item button {
-      background-color: #f44336;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    .todo-item button:hover {
-      background-color: #d32f2f;
+      color: #888;
     }
   </style>
 </head>
 <body>
-
   <div class="todo-container">
-    <div class="todo-header">My Todo List</div>
-    <input type="text" class="todo-input" id="todoInput" placeholder="Enter a new task..." />
-    <button class="todo-button" id="addTodoButton">Add Task</button>
-    
-    <div class="todo-list" id="todoList"></div>
+    <h1>Todo List</h1>
+    <input type="text" id="todo-input" placeholder="Add a new task">
+    <button id="add-btn">Add</button>
+    <ul id="todo-list"></ul>
   </div>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    // Load saved todos from localStorage
-    function loadTodos() {
-      const todos = JSON.parse(localStorage.getItem('todos')) || [];
-      const todoList = document.getElementById('todoList');
-      todoList.innerHTML = '';
+    // Initialize Supabase client
+    const supabaseUrl = 'https://wlmwwbggnbypsmpydrdg.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbXd3YmdnbmJ5cHNtcHlkcmRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4NjAxODMsImV4cCI6MjA1OTQzNjE4M30.t8rH9nXGEubukolSH3ZnAG_ZWcesy485ngc_lJH_v78';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-      todos.forEach((todo, index) => {
-        const todoItem = document.createElement('div');
-        todoItem.className = 'todo-item' + (todo.completed ? ' completed' : '');
-        todoItem.innerHTML = `
-          <span>${todo.text}</span>
-          <button onclick="deleteTodo(${index})">X</button>
+    // DOM Elements
+    const addButton = document.getElementById('add-btn');
+    const inputField = document.getElementById('todo-input');
+    const todoList = document.getElementById('todo-list');
+
+    // Fetch todos from Supabase
+    async function fetchTodos() {
+      const { data: todos, error } = await supabase
+        .from('todos')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching todos:', error);
+        return;
+      }
+
+      // Render todos in the UI
+      todoList.innerHTML = '';
+      todos.forEach(todo => {
+        const li = document.createElement('li');
+        li.id = todo.id;
+        li.classList.toggle('completed', todo.completed);
+        li.innerHTML = `
+          <span>${todo.task}</span>
+          <button class="complete-btn">✔</button>
+          <button class="delete-btn">❌</button>
         `;
-        todoItem.addEventListener('click', () => toggleComplete(index));
-        todoList.appendChild(todoItem);
+        todoList.appendChild(li);
       });
+
+      // Attach event listeners for actions
+      attachEventListeners();
     }
 
     // Add new todo
-    function addTodo() {
-      const todoInput = document.getElementById('todoInput');
-      const todoText = todoInput.value.trim();
+    addButton.addEventListener('click', async () => {
+      const task = inputField.value.trim();
+      if (task) {
+        const { data, error } = await supabase
+          .from('todos')
+          .insert([{ task, completed: false }]);
 
-      if (todoText !== '') {
-        const todos = JSON.parse(localStorage.getItem('todos')) || [];
-        todos.push({ text: todoText, completed: false });
-        localStorage.setItem('todos', JSON.stringify(todos));
-        todoInput.value = '';
-        loadTodos();
+        if (error) {
+          console.error('Error adding todo:', error);
+        } else {
+          fetchTodos();  // Refresh todo list
+        }
+
+        inputField.value = '';  // Clear input field
       }
-    }
-
-    // Toggle completion status of a todo
-    function toggleComplete(index) {
-      const todos = JSON.parse(localStorage.getItem('todos')) || [];
-      todos[index].completed = !todos[index].completed;
-      localStorage.setItem('todos', JSON.stringify(todos));
-      loadTodos();
-    }
-
-    // Delete a todo
-    function deleteTodo(index) {
-      const todos = JSON.parse(localStorage.getItem('todos')) || [];
-      todos.splice(index, 1);
-      localStorage.setItem('todos', JSON.stringify(todos));
-      loadTodos();
-    }
-
-    // Event listeners
-    document.getElementById('addTodoButton').addEventListener('click', addTodo);
-    document.getElementById('todoInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') addTodo();
     });
 
-    // Initialize
-    loadTodos();
-  </script>
+    // Toggle completed status
+    function attachEventListeners() {
+      const completeBtns = document.querySelectorAll('.complete-btn');
+      completeBtns.forEach(btn => {
+        btn.addEventListener('click', async (event) => {
+          const li = event.target.parentElement;
+          const todoId = li.id;
+          const { data, error } = await supabase
+            .from('todos')
+            .update({ completed: true })
+            .eq('id', todoId);
+          if (error) {
+            console.error('Error updating todo:', error);
+          } else {
+            fetchTodos();  // Refresh todo list
+          }
+        });
+      });
 
+      const deleteBtns = document.querySelectorAll('.delete-btn');
+      deleteBtns.forEach(btn => {
+        btn.addEventListener('click', async (event) => {
+          const li = event.target.parentElement;
+          const todoId = li.id;
+          const { data, error } = await supabase
+            .from('todos')
+            .delete()
+            .eq('id', todoId);
+
+          if (error) {
+            console.error('Error deleting todo:', error);
+          } else {
+            fetchTodos();  // Refresh todo list
+          }
+        });
+      });
+    }
+
+    // Initialize app
+    fetchTodos();
+  </script>
 </body>
 </html>
-
