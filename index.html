@@ -3,161 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>To-Do List</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f7fa;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 350px;
-            padding: 20px;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .todo-list {
-            list-style-type: none;
-            padding: 0;
-            margin: 20px 0;
-        }
-        .todo-item {
-            background-color: #f9f9f9;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .todo-item span {
-            flex: 1;
-        }
-        .todo-item button {
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .todo-item button:hover {
-            background-color: #c0392b;
-        }
-    </style>
+    <title>Supabase Todo List</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.0.0/dist/umd/supabase.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>To-Do List</h1>
-        <input type="text" id="newTodo" placeholder="Add a new task...">
-        <button id="addTodoBtn">Add Task</button>
-        <ul class="todo-list" id="todoList"></ul>
-    </div>
+    <h1>Supabase Todo List</h1>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <!-- Input and button to add tasks -->
+    <input type="text" id="taskInput" placeholder="Enter a task">
+    <button id="addTaskBtn">Add Task</button>
+
+    <h2>Todo List</h2>
+    <ul id="todoList"></ul>
+
     <script>
-        // Initialize Supabase with your URL and Key at the start
-        const supabaseUrl = 'https://wlmwwbggnbypsmpydrdg.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbXd3YmdnbmJ5cHNtcHlkcmRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4NjAxODMsImV4cCI6MjA1OTQzNjE4M30.t8rH9nXGEubukolSH3ZnAG_ZWcesy485ngc_lJH_v78';
+        // Initialize Supabase client with your URL and key
+        const supabaseUrl = 'https://zxggvxpyedjxtvvlydag.supabase.co';  // Your Supabase URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4Z2d2eHB5ZWRqeHR2dmx5ZGFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4Njc2MTgsImV4cCI6MjA1OTQ0MzYxOH0.ynktDO6hagqavOeGSFamH-R9DIDDr-1jfcsMAvth1yg';  // Your Supabase anonymous API key
         const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Function to load todos from Supabase
-        const loadTodos = async () => {
-            const { data: todos, error } = await supabase
-                .from('todos')
-                .select('*')
-                .order('created_at', { ascending: true });
+        // Function to add a new task to the Supabase database
+        async function addTask(task) {
+            const { data, error } = await supabase
+                .from('todos')  // The table you're inserting into
+                .insert([{ task, done: false }]);  // Inserting task with default "done" value
 
             if (error) {
-                console.error('Error loading todos:', error);
-                return;
+                console.error('Error adding task:', error);
+            } else {
+                console.log('Task added:', data);
+                loadTasks();  // Reload tasks after adding a new one
             }
+        }
 
-            const todoList = document.getElementById('todoList');
-            todoList.innerHTML = '';  // Clear existing todos
-
-            todos.forEach((todo) => {
-                const li = document.createElement('li');
-                li.classList.add('todo-item');
-                li.innerHTML = `
-                    <span>${todo.task}</span>
-                    <button onclick="removeTodo(${todo.id})">Remove</button>
-                `;
-                todoList.appendChild(li);
-            });
-        };
-
-        // Function to add a new todo
-        const addTodo = async () => {
-            const newTodoInput = document.getElementById('newTodo');
-            const newTodoText = newTodoInput.value.trim();
-            if (newTodoText === '') return;  // Ignore if the input is empty
-
+        // Function to load tasks from the database and display them
+        async function loadTasks() {
             const { data, error } = await supabase
                 .from('todos')
-                .insert([{ task: newTodoText, created_at: new Date() }]);
+                .select('*');  // Fetch all todos
 
             if (error) {
-                console.error('Error adding todo:', error);
-                return;
+                console.error('Error loading tasks:', error);
+            } else {
+                const todoList = document.getElementById('todoList');
+                todoList.innerHTML = '';  // Clear the list before adding updated tasks
+                data.forEach(task => {
+                    const li = document.createElement('li');
+                    li.textContent = task.task;  // Display the task description
+                    todoList.appendChild(li);
+                });
             }
+        }
 
-            newTodoInput.value = '';  // Clear the input
-            loadTodos();  // Reload the list with updated tasks
-        };
-
-        // Function to remove a todo
-        const removeTodo = async (id) => {
-            const { data, error } = await supabase
-                .from('todos')
-                .delete()
-                .eq('id', id);
-
-            if (error) {
-                console.error('Error removing todo:', error);
-                return;
+        // Add task when button is clicked
+        document.getElementById('addTaskBtn').addEventListener('click', () => {
+            const taskInput = document.getElementById('taskInput');
+            const task = taskInput.value.trim();
+            if (task) {
+                addTask(task);  // Insert the task into Supabase
+                taskInput.value = '';  // Clear input field
             }
+        });
 
-            loadTodos();  // Reload the list after deletion
-        };
-
-        // Event listener for adding a new todo
-        document.getElementById('addTodoBtn').addEventListener('click', addTodo);
-
-        // Load todos on page load
-        window.onload = loadTodos;
+        // Load tasks when the page loads
+        window.onload = loadTasks;
     </script>
 </body>
 </html>
